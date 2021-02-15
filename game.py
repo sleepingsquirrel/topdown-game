@@ -15,11 +15,14 @@ tp_list = []
 exit_list = []
 direction_list = ['u','r','d','l']
 sowrd_dic = {}
+shooty_dic = {}
+enm_proj = []
 def createimg(imgname): return pygame.transform.scale(pygame.image.load(imgname), (imgh,imgh))
 for i in os.listdir('textures/'): img_dic[i.split('.')[0]] = createimg('textures/'+i)
 for i in os.listdir('firebolt/'): fire_img[i.split('.')[0]] = createimg('firebolt/'+i)
 for i in os.listdir('enemy/'): enm_img[i.split('.')[0]] = createimg('enemy/'+i)
 for y, i in enumerate(direction_list): sowrd_dic[i] = pygame.transform.rotate(img_dic['sorwd'],-1*(90*y))
+for y, i in enumerate(direction_list): shooty_dic[i] = pygame.transform.rotate(img_dic['shooty'],-1*(90*y))
 world = [[ '' for _ in range(50)] for _ in range(50)]
 clock = pygame.time.Clock()
 running = True
@@ -99,6 +102,27 @@ class projectile:
                 except: pass
     def show(self,a,b): screen.blit(fire_img[self.rotation],     (a,b))
     def delete(self): proj_lis.remove(self)
+class enmproj:
+    def __init__(self,xy,rotation):
+        self.rotation = rotation
+        self.x,self.y = xy
+        enm_proj.append(self)
+    def up(self):
+        bpos = [self.y,self.x]
+        if self.rotation == 'u':
+            if world[self.y-1][self.x] != '+': self.y -= 1
+        elif self.rotation == 'r':
+            if world[self.y][self.x+1] != '+': self.x += 1
+        elif self.rotation == 'd':
+            if world[self.y+1][self.x] != '+': self.y += 1
+        elif self.rotation == 'l':
+            if world[self.y][self.x-1] != '+': self.x -= 1
+        if self.y == bpos[0] and self.x == bpos[1]: self.delete()
+        if [self.x,self.y] == [round(wiz.x),round(wiz.y)]:
+            wiz.health -= 1
+            self.delete()
+    def show(self,a,b): screen.blit(fire_img[self.rotation],     (a,b))
+    def delete(self): enm_proj.remove(self)
 class teleporter:
     def __init__(self,xy,xy2):
         tp_list.append(self)
@@ -119,7 +143,7 @@ class enemey:
     def move(self):
         if self.x > round(wiz.x): self.test(0,-1,'l')
         if self.x < round(wiz.x): self.test(0,1,'r')
-        if self.y > wiz.y: self.test(-1,0,'u')
+        if self.y > round(wiz.y): self.test(-1,0,'u')
         if self.y < round(wiz.y): self.test(1,0,'d')
     def test(self,y,x,r):
         self.rotation = r
@@ -132,6 +156,39 @@ class enemey:
                 self.x += x
     def show(self,a,b): screen.blit(enm_img[self.rotation],     (a,b))
     def delete(self): enm_lis.remove(self)
+class shooty:
+    def __init__(self,xy):
+        self.rotation = 'u'
+        self.x , self.y = xy
+        self.health = 1
+        enm_lis.append(self)
+    def move(self):
+        if self.x == round(wiz.x) or self.y == round(wiz.y):
+            if self.x > round(wiz.x): self.rotation = 'l'
+            if self.x < round(wiz.x): self.rotation = 'r'
+            if self.y > round(wiz.y): self.rotation = 'u'
+            if self.y < round(wiz.y): self.rotation = 'd'
+            enmproj([self.x,self.y],self.rotation)
+        else:
+            if self.x > round(wiz.x): self.test(0,-1,'l')
+            if self.x < round(wiz.x): self.test(0,1,'r')
+            if self.y > round(wiz.y): self.test(-1,0,'u')
+            if self.y < round(wiz.y): self.test(1,0,'d')
+    def test(self,y,x,r):
+        self.rotation = r
+        a = True
+        for i in enm_lis:
+            if self.y+y == i.y and self.x+x == i.x: a = False
+        if a:
+            if world[self.y+y][self.x+x] != '+':
+                self.y += y
+                self.x += x
+    def show(self,a,b): screen.blit(shooty_dic[self.rotation],     (a,b))
+    def delete(self):
+        if self.health < 1:
+            enm_lis.remove(self)
+        else:
+            self.health -= 1
 class door:
     def __init__(self,xy,new_level):
         exit_list.append(self)
@@ -170,6 +227,8 @@ def populate():
                         screen.blit(img_dic['spike'],     (a,b))
                     for k in proj_lis:
                         if i == k.x and o == k.y: k.show(a,b)
+                    for k in enm_proj:
+                        if i == k.x and o == k.y: k.show(a,b)
                     for k in tp_list:
                         if [i,o] == k.xy: k.draw(a,b)
                         elif [i,o] == k.xy2: k.draw(a,b)
@@ -202,6 +261,7 @@ def load_world(name):
     with open('worlds/'+name+'/data.txt') as file:
         for line in file:
             if line.split(':')[0] == 'e': enemey([int(line.split(':')[1]),int(line.split(':')[2])])
+            if line.split(':')[0] == 'sh': shooty([int(line.split(':')[1]),int(line.split(':')[2])])
             if line.split(':')[0] == 'tp': teleporter([int(line.split(':')[1]),int(line.split(':')[2])],[int(line.split(':')[3]),int(line.split(':')[4])])
             if line.split(':')[0] == 'ex': door([int(line.split(':')[1]),int(line.split(':')[2])],line.split(':')[3])
 menu_draw()
@@ -214,6 +274,7 @@ while running:
         for i in exit_list:
             if [round(wiz.x),round(wiz.y)] == i.xy: i.through()
         for i in proj_lis: i.up()
+        for i in enm_proj: i.up()
         if time%30 == 0:
             for i in tp_list:
                 for u in enm_lis:
@@ -222,8 +283,8 @@ while running:
                 if [round(wiz.x),round(wiz.y)] == i.xy: i.tp(False,wiz)
                 elif [round(wiz.x),round(wiz.y)] == i.xy2: i.tp(True,wiz)
             for i in enm_lis:
-                i.move()
                 if i.x == round(wiz.x) and i.y == round(wiz.y): wiz.health-=1
+                i.move()
         if time%60 == 0:
             if wiz.mana < wiz.maxmana: wiz.mana += 1
         if wiz.health <1:

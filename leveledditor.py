@@ -14,11 +14,16 @@ proj_lis = []
 enm_lis = []
 tp_list = []
 exit_list = []
+shooty_dic = {}
+direction_list = ['u','r','d','l']
+enm_proj = []
+sho = []
 barrow = '+'
 tempfortp = [True,[0,0]]
 def createimg(imgname): return pygame.transform.scale(pygame.image.load(imgname), (imgh,imgh))
 for i in os.listdir('textures/'): img_dic[i.split('.')[0]] = createimg('textures/'+i)
 for i in os.listdir('enemy/'): enm_img[i.split('.')[0]] = createimg('enemy/'+i)
+for y, i in enumerate(direction_list): shooty_dic[i] = pygame.transform.rotate(img_dic['shooty'],-1*(90*y))
 world = [[ '' for _ in range(50)] for _ in range(50)]
 clock = pygame.time.Clock()
 running = True
@@ -63,6 +68,40 @@ class enemey:
                 self.x += x
     def show(self,a,b): screen.blit(enm_img[self.rotation],     (a,b))
     def delete(self): enm_lis.remove(self)
+class shooty:
+    def __init__(self,xy):
+        self.rotation = 'u'
+        self.x , self.y = xy
+        self.health = 2
+        enm_lis.append(self)
+        sho.append(self)
+    def move(self):
+        if self.x == round(wiz.x) or self.y == round(wiz.y):
+            if self.x > round(wiz.x): self.rotation = 'l'
+            if self.x < round(wiz.x): self.rotation = 'r'
+            if self.y > round(wiz.y): self.rotation = 'u'
+            if self.y < round(wiz.y): self.rotation = 'd'
+            enmproj([self.x,self.y],self.rotation)
+        else:
+            if self.x > round(wiz.x): self.test(0,-1,'l')
+            if self.x < round(wiz.x): self.test(0,1,'r')
+            if self.y > round(wiz.y): self.test(-1,0,'u')
+            if self.y < round(wiz.y): self.test(1,0,'d')
+    def test(self,y,x,r):
+        self.rotation = r
+        a = True
+        for i in enm_lis:
+            if self.y+y == i.y and self.x+x == i.x: a = False
+        if a:
+            if world[self.y+y][self.x+x] != '+':
+                self.y += y
+                self.x += x
+    def show(self,a,b): screen.blit(shooty_dic[self.rotation],     (a,b))
+    def delete(self):
+        if self.health < 1:
+            enm_lis.remove(self)
+        else:
+            self.health -= 1
 class door:
     def __init__(self,xy,new_level):
         exit_list.append(self)
@@ -94,6 +133,8 @@ def populate():
                         elif [i,o] == k.xy2: k.draw(a,b)
                     for k in enm_lis:
                         if i == k.x and o == k.y: k.show(a,b)
+                    for k in enm_proj:
+                        if i == k.x and o == k.y: k.show(a,b)
                     if i == wiz.x and o == wiz.y: wiz.show(a,b)
     screen.blit(myfont.render(str(round(clock.get_fps())), False, (255, 0, 0) if clock.get_fps() < 10 else (0,255,0)),(950,700))
     screen.blit(img_dic['menu'],(0,0))
@@ -124,6 +165,7 @@ def load_world(name):
             if line.split(':')[0] == 'e': enemey([int(line.split(':')[1]),int(line.split(':')[2])])
             if line.split(':')[0] == 'tp': teleporter([int(line.split(':')[1]),int(line.split(':')[2])],[int(line.split(':')[3]),int(line.split(':')[4])])
             if line.split(':')[0] == 'ex': door([int(line.split(':')[1]),int(line.split(':')[2])],line.split(':')[3])
+            if line.split(':')[0] == 'sh': shooty([int(line.split(':')[1]),int(line.split(':')[2])])
 menu_draw()
 while running:
     pygame.display.update()
@@ -150,7 +192,9 @@ while running:
                     continue
                 elif pygame.mouse.get_pos()[0] > 950 and pygame.mouse.get_pos()[1] < 50:
                     with open('worlds/'+current+'/data.txt','w') as file:
-                        for i in enm_lis: file.write('e:'+str(i.x)+':'+str(i.y)+':'+'\n')
+                        for i in enm_lis:
+                            if i not in sho: file.write('e:'+str(i.x)+':'+str(i.y)+':'+'\n')
+                            else: file.write('sh:'+str(i.x)+':'+str(i.y)+':'+'\n')
                         for i in tp_list: file.write('tp:'+str(i.xy[0])+':'+str(i.xy[1])+':'+str(i.xy2[0])+':'+str(i.xy2[1])+':'+'\n')
                         for i in exit_list: file.write('ex:'+str(i.xy[0])+':'+str(i.xy[1])+':'+i.level +':''\n')
                     with open('worlds/'+current+'/map.txt','w') as file:
@@ -161,6 +205,7 @@ while running:
                     barrow = input('change to: ')
                     continue
                 if barrow == 'e': enemey([mouse_X,mouse_Y])
+                elif barrow == 'sh': shooty([mouse_X,mouse_Y])
                 elif barrow == 'tp':
                     if tempfortp[0]:
                         tempfortp[1] = [mouse_X,mouse_Y]
