@@ -120,7 +120,9 @@ class enmproj:
         if self.y == bpos[0] and self.x == bpos[1]: self.delete()
         if [self.x,self.y] == [round(wiz.x),round(wiz.y)]:
             wiz.health -= 1
-            self.delete()
+            try:
+                self.delete()
+            except: pass
     def show(self,a,b): screen.blit(fire_img[self.rotation],     (a,b))
     def delete(self): enm_proj.remove(self)
 class teleporter:
@@ -185,10 +187,12 @@ class shooty:
                 self.x += x
     def show(self,a,b): screen.blit(shooty_dic[self.rotation],     (a,b))
     def delete(self):
-        if self.health < 1:
-            enm_lis.remove(self)
-        else:
-            self.health -= 1
+        try:
+            if self.health < 1:
+                enm_lis.remove(self)
+            else:
+                self.health -= 1
+        except: pass
 class door:
     def __init__(self,xy,new_level):
         exit_list.append(self)
