@@ -46,11 +46,11 @@ class player:
             try: self.y += 0
             except:
                 try:
-                    for i in range(len(world[0])):
-                        for o in range(len(world)):
-                            if world[o][i] == '.':
+                    for i in range(len(world)):
+                        for o in range(len(world[0])):
+                            if world[i][o] == '.':
                                 print(o,i)
-                                self.x,self.y = [i,o]
+                                self.x,self.y = [o,i]
                                 '2' +1
                 except: pass
             with open('wizdata.txt') as file:
