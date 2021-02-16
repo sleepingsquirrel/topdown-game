@@ -5,6 +5,7 @@ w = 1000
 h = round(w * .75)
 d = 15
 screen = pygame.display.set_mode((w, h))
+game_surface =  pygame.Surface((w, h))
 imgh = round(h/d)
 img_dic = {}
 fire_img = {}
@@ -17,7 +18,9 @@ direction_list = ['u','r','d','l']
 sowrd_dic = {}
 shooty_dic = {}
 enm_proj = []
-def createimg(imgname): return pygame.transform.scale(pygame.image.load(imgname), (imgh,imgh))
+close_list = []
+current_level = ''
+def createimg(imgname): return pygame.transform.scale(pygame.image.load(imgname).convert_alpha(), (imgh,imgh))
 for i in os.listdir('textures/'): img_dic[i.split('.')[0]] = createimg('textures/'+i)
 for i in os.listdir('firebolt/'): fire_img[i.split('.')[0]] = createimg('firebolt/'+i)
 for i in os.listdir('enemy/'): enm_img[i.split('.')[0]] = createimg('enemy/'+i)
@@ -29,26 +32,37 @@ running = True
 menu = True
 myfont = pygame.font.SysFont('Trebuchet MS', 30)
 time = 0
+
 class player:
     def __init__(self):
         with open('wizdata.txt') as file:
             for line in file: print (line)
             self.sprites = {}
-            def first():
-                for i in range(len(world)):
-                    for o in range(len(world[0])):
-                        if world[i][o] == '.': return i,o
+            with open('worlds/'+loaded_world+'/data.txt')as file:
+                for line in file:
+                    if line.split(':')[0] == '-':
+                        self.y,self.x = [int(line.split(':')[1]),int(line.split(':')[2])]
+                        break
+            try: self.y += 0
+            except:
+                try:
+                    for i in range(len(world[0])):
+                        for o in range(len(world)):
+                            if world[o][i] == '.':
+                                print(o,i)
+                                self.x,self.y = [i,o]
+                                '2' +1
+                except: pass
             with open('wizdata.txt') as file:
                 for line in file:
                     self.maxmana = int(line.split(':')[0])
                     self.maxhealth = int(line.split(':')[1])
             self.health = self.maxhealth
             self.mana = self.maxmana
-            self.y , self.x = first()
             self.rotation = 'u'
-            self.ty , self.tx = [self.x,self.y]
+            self.ty , self.tx = [self.y,self.x]
             for i in os.listdir('player/'): self.sprites[i.split('.')[0]] = createimg('player/'+i)
-    def show(self): screen.blit(self.sprites[self.rotation],     (round((w/2)-25),round((h/2)-25)))
+    def show(self): game_surface.blit(self.sprites[self.rotation],     (round((w/2)-25),round((h/2)-25)))
     def move(self,y,x,r):
         self.rotation = r
         if world[round(self.ty+y)][round(self.tx+x)] == 's': self.health -=1
@@ -64,19 +78,19 @@ class player:
     def sowrd(self):
         if self.rotation == 'u':
             screen.blit(sowrd_dic[self.rotation],(round((w/2)-25),round((h/2)-75)))
-            for i in enm_lis:
+            for i in close_list:
                 if [round(self.y)-1,round(self.x)] ==  [i.y,i.x]: i.delete()
         elif self.rotation == 'r':
             screen.blit(sowrd_dic[self.rotation],(round((w/2)+25),(round(h/2)-25)))
-            for i in enm_lis:
+            for i in close_list:
                 if [round(self.y),round(self.x)+1] ==  [i.y,i.x]: i.delete()
         elif self.rotation == 'd':
             screen.blit(sowrd_dic[self.rotation],(round((w/2)-25),round((h/2)+25)))
-            for i in enm_lis:
+            for i in close_list:
                 if [round(self.y)+1,round(self.x)] ==  [i.y,i.x]: i.delete()
         elif self.rotation == 'l':
             screen.blit(sowrd_dic[self.rotation],(round((w/2)-75),round((h/2)-25)))
-            for i in enm_lis:
+            for i in close_list:
                 if [round(self.y),round(self.x)-1] ==  [i.y,i.x]: i.delete()
 class projectile:
     def __init__(self,xy,rotation):
@@ -94,13 +108,13 @@ class projectile:
         elif self.rotation == 'l':
             if world[self.y][self.x-1] != '+': self.x -= 1
         if self.y == bpos[0] and self.x == bpos[1]: self.delete()
-        for i in enm_lis:
+        for i in close_list:
             if self.y == i.y and self.x == i.x:
                 try:
                     i.delete()
                     self.delete()
                 except: pass
-    def show(self,a,b): screen.blit(fire_img[self.rotation],     (a,b))
+    def show(self,a,b): game_surface.blit(fire_img[self.rotation],     (a,b))
     def delete(self): proj_lis.remove(self)
 class enmproj:
     def __init__(self,xy,rotation):
@@ -123,7 +137,7 @@ class enmproj:
             try:
                 self.delete()
             except: pass
-    def show(self,a,b): screen.blit(fire_img[self.rotation],     (a,b))
+    def show(self,a,b): game_surface.blit(fire_img[self.rotation],     (a,b))
     def delete(self): enm_proj.remove(self)
 class teleporter:
     def __init__(self,xy,xy2):
@@ -136,7 +150,7 @@ class teleporter:
         try:
             obj.re()
         except: pass
-    def draw(self,a,b): screen.blit(img_dic['tp'],     (a,b))
+    def draw(self,a,b): game_surface.blit(img_dic['tp'],     (a,b))
 class enemey:
     def __init__(self,xy):
         self.rotation = 'u'
@@ -150,14 +164,16 @@ class enemey:
     def test(self,y,x,r):
         self.rotation = r
         a = True
-        for i in enm_lis:
+        for i in close_list:
             if self.y+y == i.y and self.x+x == i.x: a = False
         if a:
             if world[self.y+y][self.x+x] != '+':
                 self.y += y
                 self.x += x
-    def show(self,a,b): screen.blit(enm_img[self.rotation],     (a,b))
-    def delete(self): enm_lis.remove(self)
+    def show(self,a,b): game_surface.blit(enm_img[self.rotation],     (a,b))
+    def delete(self):
+        enm_lis.remove(self)
+        if self in close_list: close_list.remove(self)
 class shooty:
     def __init__(self,xy):
         self.rotation = 'u'
@@ -179,13 +195,13 @@ class shooty:
     def test(self,y,x,r):
         self.rotation = r
         a = True
-        for i in enm_lis:
+        for i in close_list:
             if self.y+y == i.y and self.x+x == i.x: a = False
         if a:
             if world[self.y+y][self.x+x] != '+':
                 self.y += y
                 self.x += x
-    def show(self,a,b): screen.blit(shooty_dic[self.rotation],     (a,b))
+    def show(self,a,b): game_surface.blit(shooty_dic[self.rotation],     (a,b))
     def delete(self):
         try:
             if self.health < 1:
@@ -206,29 +222,28 @@ def load(name):
     global world
     global wiz
     with open(name) as textFile: world = [line.split() for line in textFile]
-    wiz = player()
 def populate():
-    screen.fill((0,0,0))
+    game_surface.fill((0,0,0))
     for i in range(len(world[0])):
         for o in range(len(world)):
             if round(wiz.x) + 11 > i and round(wiz.y)+9>o:
                 if round(wiz.x) - 11 < i and round(wiz.y)-9<o:
                     a = round(round(h/d)*(i-(wiz.x)+9.5))
                     b = round(round(h/d)*(o-(wiz.y)+7))
-                    if world[o][i] == ".": screen.blit(img_dic['ground2'],     (a,b))
-                    elif world[o][i] == "+": screen.blit(img_dic['wall'],     (a,b))
+                    if world[o][i] == ".": game_surface.blit(img_dic['ground2'],     (a,b))
+                    elif world[o][i] == "+": game_surface.blit(img_dic['wall'],     (a,b))
                     elif world[o][i] == "s":
-                        screen.blit(img_dic['ground2'],     (a,b))
-                        screen.blit(img_dic['spike'],     (a,b))
+                        game_surface.blit(img_dic['ground2'],     (a,b))
+                        game_surface.blit(img_dic['spike'],     (a,b))
                     elif world[o][i] == "g":
-                        screen.blit(img_dic[''],     (a,b))
-                        screen.blit(img_dic['spike'],     (a,b))
+                        game_surface.blit(img_dic[''],     (a,b))
+                        game_surface.blit(img_dic['spike'],     (a,b))
                     elif world[o][i] == "g":
-                        screen.blit(img_dic[''],     (a,b))
-                        screen.blit(img_dic['spike'],     (a,b))
+                        game_surface.blit(img_dic[''],     (a,b))
+                        game_surface.blit(img_dic['spike'],     (a,b))
                     elif world[o][i] == "g":
-                        screen.blit(img_dic[''],     (a,b))
-                        screen.blit(img_dic['spike'],     (a,b))
+                        game_surface.blit(img_dic[''],     (a,b))
+                        game_surface.blit(img_dic['spike'],     (a,b))
                     for k in proj_lis:
                         if i == k.x and o == k.y: k.show(a,b)
                     for k in enm_proj:
@@ -236,9 +251,10 @@ def populate():
                     for k in tp_list:
                         if [i,o] == k.xy: k.draw(a,b)
                         elif [i,o] == k.xy2: k.draw(a,b)
-                    for k in enm_lis:
+                    for k in close_list:
                         if i == k.x and o == k.y: k.show(a,b)
                     wiz.show()
+    screen.blit(game_surface,(0,0))
     screen.blit(myfont.render(str(round(clock.get_fps())), False, (255, 0, 0) if clock.get_fps() < 10 else (0,255,0)),(950,700))
     screen.blit(img_dic['menu'],(0,0))
     for i in range(wiz.maxhealth):
@@ -280,13 +296,16 @@ while running:
         for i in proj_lis: i.up()
         for i in enm_proj: i.up()
         if time%30 == 0:
+            close_list = []
+            for i in enm_lis:
+                if ((round(wiz.x)+20>i.x or i.x<round(wiz.x)-20) and (round(wiz.y)+20>i.y or i.y<round(wiz.y)-20)): close_list.append(i)
             for i in tp_list:
-                for u in enm_lis:
+                for u in close_list:
                     if [u.x,u.y] == i.xy: i.tp(False,u)
                     elif [u.x,u.y] == i.xy2: i.tp(True,u)
                 if [round(wiz.x),round(wiz.y)] == i.xy: i.tp(False,wiz)
                 elif [round(wiz.x),round(wiz.y)] == i.xy2: i.tp(True,wiz)
-            for i in enm_lis:
+            for i in close_list:
                 if i.x == round(wiz.x) and i.y == round(wiz.y): wiz.health-=1
                 i.move()
         if time%60 == 0:
@@ -303,6 +322,7 @@ while running:
                     if pygame.mouse.get_pos()[1] < 50*i+50 and pygame.mouse.get_pos()[1] > 50*i :
                         load_world(y)
                         loaded_world = y
+                        wiz = player()
                         menu = False
         else:
             if event.type == pygame.MOUSEBUTTONDOWN:
