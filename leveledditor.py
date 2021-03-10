@@ -22,7 +22,9 @@ barrow = '+'
 tempfortp = [True,[0,0]]
 def createimg(imgname): return pygame.transform.scale(pygame.image.load(imgname), (imgh,imgh))
 for i in os.listdir('textures/'): img_dic[i.split('.')[0]] = createimg('textures/'+i)
-for i in os.listdir('enemy/'): enm_img[i.split('.')[0]] = createimg('enemy/'+i)
+for y, i in enumerate(direction_list): enm_img[i] = pygame.transform.rotate(img_dic['enemy'],-1*(90*y)+180)
+for y, i in enumerate(direction_list): fire_img[i] = pygame.transform.rotate(img_dic['firebolt'],-1*(90*y)+180)
+
 for y, i in enumerate(direction_list): shooty_dic[i] = pygame.transform.rotate(img_dic['shooty'],-1*(90*y))
 world = [[ '' for _ in range(50)] for _ in range(50)]
 clock = pygame.time.Clock()
@@ -40,7 +42,7 @@ class player:
         self.health = 4
         self.y , self.x = first()
         self.rotation = 'u'
-        for i in os.listdir('player/'): self.sprites[i.split('.')[0]] = createimg('player/'+i)
+        for y, i in enumerate(direction_list): self.sprites[i] = pygame.transform.rotate(img_dic['player'],-1*(90*y)+180)
     def show(self,a,b): screen.blit(self.sprites[self.rotation],     (a,b))
     def move(self,y,x,r):
         self.rotation = r
